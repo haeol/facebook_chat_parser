@@ -63,10 +63,11 @@ void destroyTrie(TrieNode* root) {
     for (int i = 0; i < TRIE_SZ; ++i) {
         destroyTrie(root->next[i]);
     }
+    free(root->data);
     free(root);
 }
 
-void insert(TrieNode* root, const char* word, void* data) {
+void insert(TrieNode* root, const char* word, void* data, void* defaultData) {
     TrieNode* curr  = root;
     
     int pos;
@@ -74,7 +75,7 @@ void insert(TrieNode* root, const char* word, void* data) {
     for (int i = 0; i < len; ++i) {
         pos = trieHash(word[i]);
         if (curr->next[pos] == NULL) {
-            curr->next[pos] = createNode(NULL);
+            curr->next[pos] = createNode(defaultData);
         }
         curr = curr->next[pos];
     }

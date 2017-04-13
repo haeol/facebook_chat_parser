@@ -4,15 +4,23 @@
 #include "status.h"
 #include "trie.h"
 
+void insertStatusTrie(TrieNode* root, char* key, status_t status) {
+    void* data = malloc(sizeof(status_t));
+    *(status_t*)data = status;
+    insert(root, key, data);
+}
+
 TrieNode* initParserTrie() {
-    TrieNode* root = createNode();
-    insert(root, "<span class=\"user\">",  USER_OPEN);
-    insert(root, "<span class=\"meta\">",  META_OPEN);
-    insert(root, "</span>",                SPAN_CLOSE);
-    insert(root, "<p>",                    MESSAGE_OPEN);
-    insert(root, "</p>",                   MESSAGE_CLOSE);
-    insert(root, "<div class=\"thread\">", CHAT_THREAD_OPEN);
-    insert(root, "</div>",                 DIV_CLOSE);
+    void* data = malloc(sizeof(status_t));
+    *(status_t*)data = NONE;
+    TrieNode* root = createNode(data);
+    insertStatusTrie(root, "<span class=\"user\">",  USER_OPEN);
+    insertStatusTrie(root, "<span class=\"meta\">",  META_OPEN);
+    insertStatusTrie(root, "</span>",                SPAN_CLOSE);
+    insertStatusTrie(root, "<p>",                    MESSAGE_OPEN);
+    insertStatusTrie(root, "</p>",                   MESSAGE_CLOSE);
+    insertStatusTrie(root, "<div class=\"thread\">", CHAT_THREAD_OPEN);
+    insertStatusTrie(root, "</div>",                 DIV_CLOSE);
     return root;
 }
 
@@ -21,6 +29,10 @@ void writeBuf(char* buf, int* buf_pos, status_t* curr_status) {
     printf("%s\n", buf);
     *buf_pos = 0;
     *curr_status = NONE;
+}
+
+status_t deref(void* data) {
+    return *(status_t*)data;
 }
 
 int main() {
@@ -48,8 +60,8 @@ int main() {
         // if curr != null, search for curr char and assign curr to next via char
         // check status for leaf or status != NONE, if not NONE, reset buf pos to 0
         curr = searchChar(curr, ch);
-        if (curr != NULL && curr->status != NONE) {
-            curr_status = curr->status;
+        if (curr != NULL && deref(curr->data) != NONE) {
+            curr_status = deref(curr->data);
         } else {
             // if status == USER_OPEN or META_OPEN or MESSAGE_OPEN, add to buffer
             switch (curr_status) {
