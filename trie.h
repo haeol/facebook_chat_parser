@@ -1,7 +1,7 @@
 #ifndef _TRIE_H_
 #define _TRIE_H_
 
-#define TRIE_SZ 32
+#define TRIE_SZ 44
 
 typedef struct TrieNode {
     struct TrieNode* next[TRIE_SZ];

@@ -43,6 +43,18 @@ int trieHash(char ch) {
         case '"': ret = 29; break;
         case ' ': ret = 30; break;
         case '/': ret = 31; break;
+        case '&': ret = 32; break;
+        case '#': ret = 33; break;
+        case '0': ret = 34; break;
+        case '1': ret = 35; break;
+        case '2': ret = 36; break;
+        case '3': ret = 37; break;
+        case '4': ret = 38; break;
+        case '5': ret = 39; break;
+        case '6': ret = 40; break;
+        case '7': ret = 41; break;
+        case '8': ret = 42; break;
+        case '9': ret = 43; break;
     }
     return ret;
 }

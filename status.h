@@ -1,5 +1,5 @@
-#ifndef _PARSER_STATUS_H_
-#define _PARSER_STATUS_H_
+#ifndef _STATUS_H_
+#define _STATUS_H_
 
 #define SPAN_CLOSE_LENGTH 7
 #define MESSAGE_CLOSE_LENGTH 4
@@ -12,8 +12,15 @@ typedef enum {
     MESSAGE_OPEN,
     MESSAGE_CLOSE,
     CHAT_THREAD_OPEN,
+    CHAT_THREAD_STALL,
     DIV_CLOSE
-} status_t;
+} parser_status_t;
+
+typedef enum {
+    //NONE,
+    READING,
+    REPLACE
+} decoder_status_t;
 
 /*
 status_t closingTag(status_t status) {
@@ -29,4 +36,4 @@ status_t closingTag(status_t status) {
 
 */
 
-#endif // _PARSER_STATUS_H_
+#endif // _STATUS_H_

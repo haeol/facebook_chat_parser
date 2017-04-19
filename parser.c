@@ -1,75 +1,95 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 #include "status.h"
 #include "trie.h"
 
-void insertStatusTrie(TrieNode* root, char* key, status_t status, void* defaultData) {
-    void* data = malloc(sizeof(status_t));
-    *(status_t*)data = status;
+
+#define CSV_DIRECTORY "./fbthreads/"
+#define HEADERS "name, date, message"
+FILE *OUTFILE;
+FILE *THREAD_INDEX;
+
+void insertParserTrie(TrieNode* root, char* key, parser_status_t status, void* defaultData) {
+    void* data = malloc(sizeof(parser_status_t));
+    *(parser_status_t*)data = status;
     insert(root, key, data, defaultData);
 }
 
-status_t deref(void* data) {
-    return *(status_t*)data;
-}
-
 TrieNode* initParserTrie() {
-    void* defaultData = malloc(sizeof(status_t));
-    *(status_t*)defaultData = NONE;
+    void* defaultData = malloc(sizeof(parser_status_t));
+    *(parser_status_t*)defaultData = NONE;
     TrieNode* root = createNode(defaultData);
-    insertStatusTrie(root, "<span class=\"user\">",  USER_OPEN, defaultData);
-    insertStatusTrie(root, "<span class=\"meta\">",  META_OPEN, defaultData);
-    insertStatusTrie(root, "</span>",                SPAN_CLOSE, defaultData);
-    insertStatusTrie(root, "<p>",                    MESSAGE_OPEN, defaultData);
-    insertStatusTrie(root, "</p>",                   MESSAGE_CLOSE, defaultData);
-    insertStatusTrie(root, "<div class=\"thread\">", CHAT_THREAD_OPEN, defaultData);
-    insertStatusTrie(root, "</div>",                 DIV_CLOSE, defaultData);
+    insertParserTrie(root, "<span class=\"user\">",  USER_OPEN, defaultData);
+    insertParserTrie(root, "<span class=\"meta\">",  META_OPEN, defaultData);
+    insertParserTrie(root, "</span>",                SPAN_CLOSE, defaultData);
+    insertParserTrie(root, "<p>",                    MESSAGE_OPEN, defaultData);
+    insertParserTrie(root, "</p>",                   MESSAGE_CLOSE, defaultData);
+    insertParserTrie(root, "<div class=\"thread\">", CHAT_THREAD_OPEN, defaultData);
+    insertParserTrie(root, "</div>",                 DIV_CLOSE, defaultData);
     return root;
 }
 
-void writeBuf(char* buf, int* buf_pos, status_t* curr_status, status_t* read_status) {
+/*
+// Trie to decode html encoded characters
+void insertDecoderTrie(TrieNode* root, char* key, parser_status_t status, void* defaultData) {
+
+}
+
+
+
+TrieNode* initDecoderTrie() {
+    void* defaultData = NULL;
+    TrieNode* root = createNode(defaultData);
+    return root;
+}
+*/
+
+void writeBuf(FILE* f, char* buf, int* buf_pos, parser_status_t* curr_status, parser_status_t* read_status) {
     buf[*buf_pos] = 0;
 
-    // name, date, content
+    // name, date, message
     switch(*read_status) {
-
-        case CHAT_THREAD_OPEN:
-            printf("THREAD PEOPLE: "); break;
         case USER_OPEN:
-            printf("\tUSERNAME: "); break;
         case META_OPEN:
-            printf("\tDATE: "); break;
+            fprintf(f, "\"%s\", ", buf); break;
         case MESSAGE_OPEN:
-            printf("\t\tMESSAGE: "); break;
+            fprintf(f, "\"%s\"\n", buf); break;
         default: break;
     }
-    printf("%s\n", buf);
+    //fprintf(f, "%s", buf);
     *buf_pos = 0;
     *curr_status = NONE;
     *read_status = NONE;
 }
 
+
 int main() {
 
     TrieNode* root = initParserTrie();
     TrieNode* curr = NULL;
+ 
+    mkdir(CSV_DIRECTORY, 0700);
 
-    printf("Opening file\n");
-
-    //FILE* fp = fopen("sample.html", "r");
     FILE* fp = fopen("messages.htm", "r");
     char ch;
     int buf_pos = 0;
     char buf[20000]; // char limit for facebook
-    status_t curr_status = NONE;
-    status_t read_status = NONE;
+
+    int thread_index = 1;
+    char outfile_name[100];
+    sprintf(outfile_name, "%s%05d.csv", CSV_DIRECTORY, thread_index);
+    THREAD_INDEX = fopen("index.txt", "w");
+
+    parser_status_t curr_status = NONE;
+    parser_status_t read_status = NONE;
     printf("Starting loop\n");
 
     int count = 0;
 
     while ((ch = getc(fp)) != EOF) {
-
         // if ch == '<' start searching, assign curr = root
         if (ch == '<') {
             curr = root;
@@ -78,16 +98,15 @@ int main() {
         // if curr != null, search for curr char and assign curr to next via char
         // check status for leaf or status != NONE, if not NONE, reset buf pos to 0
         curr = searchChar(curr, ch);
-        if (curr != NULL && *(status_t*)curr->data != NONE) {
-            curr_status = deref(curr->data);
+        if (curr != NULL && *(parser_status_t*)curr->data != NONE) {
+            curr_status = *(parser_status_t*)curr->data;
         } else {
             // if status == USER_OPEN or META_OPEN or MESSAGE_OPEN, add to buffer
             switch (curr_status) {
                 case CHAT_THREAD_OPEN:
-                    // write thread information and reset status
-                    if (ch == '<') {
-                        writeBuf(buf, &buf_pos, &curr_status, &read_status);
-                        curr = NULL;
+                    // grab only name or fb id
+                    if (ch == '&') {
+                        curr_status = CHAT_THREAD_STALL;
                         break;
                     }
                 case USER_OPEN:
@@ -106,15 +125,37 @@ int main() {
                     } else if (curr_status == MESSAGE_CLOSE) {
                         buf_pos = buf_pos + 1 - MESSAGE_CLOSE_LENGTH;
                     }
-                    writeBuf(buf, &buf_pos, &curr_status, &read_status);
+                    writeBuf(OUTFILE, buf, &buf_pos, &curr_status, &read_status);
                     break;
 
-                /*
-                case MESSAGE_CLOSE: 
-                    writeBuf(buf, &buf_pos, &curr_status, &read_status);
-                    break;
-                */
+                case CHAT_THREAD_STALL:
+                    if (ch == ',') {
+                        curr_status = CHAT_THREAD_OPEN;
+                        buf[buf_pos++] = ch;
+                    }
+                    // write thread information and reset status
+                    else if (ch == '<') {
 
+                        // write to file
+                        buf[buf_pos] = 0;
+                        fprintf(THREAD_INDEX, "%d: [%s]\n", thread_index, buf);
+
+                        // reset buffer and status
+                        buf_pos = 0;
+                        curr_status = read_status = NONE;
+
+                        // close file
+                        fclose(OUTFILE);
+
+                        // open new file
+                        sprintf(outfile_name, "%s%05d.csv", CSV_DIRECTORY, thread_index++);
+                        OUTFILE = fopen(outfile_name, "w");
+                        fprintf(OUTFILE, "%s\n", HEADERS);
+
+                        // reset curr
+                        curr = NULL;
+                        break;
+                    }
                 case DIV_CLOSE: 
                 
                 default:
@@ -123,6 +164,8 @@ int main() {
 
         }
     }
+    fclose(OUTFILE);
+    fclose(THREAD_INDEX);
 
     return 0;
 }
