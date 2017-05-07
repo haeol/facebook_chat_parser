@@ -9,7 +9,7 @@ typedef struct TrieNode {
 } TrieNode;
 
 TrieNode* createNode(void* data);
-void destroyTrie(TrieNode* root);
+void destroyTrie(TrieNode* root, void* defaultData);
 void insert(TrieNode* root, const char* word, void* dataPtr, void* defaultData);
 void* search(TrieNode* root, const char* word, void* defaultData);
 TrieNode* searchChar(TrieNode* root, const char c);

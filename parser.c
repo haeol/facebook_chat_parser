@@ -7,10 +7,15 @@
 #include "trie.h"
 
 
-#define CSV_DIRECTORY "./fbthreads/"
-#define HEADERS "name, date, message"
+#define CSV_DIRECTORY "./chatthreads/"
+#define CSV_HEADERS "name, date, message"
+#define FACEBOOK_CHAR_LIMIT 20000
+#define FILENAME_LIMIT 100
+
 FILE *OUTFILE;
 FILE *THREAD_INDEX;
+
+char DELIMITER = '\t'; // tabs or commas
 
 void insertParserTrie(TrieNode* root, char* key, parser_status_t status, void* defaultData) {
     void* data = malloc(sizeof(parser_status_t));
@@ -18,8 +23,7 @@ void insertParserTrie(TrieNode* root, char* key, parser_status_t status, void* d
     insert(root, key, data, defaultData);
 }
 
-TrieNode* initParserTrie() {
-    void* defaultData = malloc(sizeof(parser_status_t));
+TrieNode* initParserTrie(void* defaultData) {
     *(parser_status_t*)defaultData = NONE;
     TrieNode* root = createNode(defaultData);
     insertParserTrie(root, "<span class=\"user\">",  USER_OPEN, defaultData);
@@ -38,8 +42,6 @@ void insertDecoderTrie(TrieNode* root, char* key, parser_status_t status, void* 
 
 }
 
-
-
 TrieNode* initDecoderTrie() {
     void* defaultData = NULL;
     TrieNode* root = createNode(defaultData);
@@ -54,21 +56,21 @@ void writeBuf(FILE* f, char* buf, int* buf_pos, parser_status_t* curr_status, pa
     switch(*read_status) {
         case USER_OPEN:
         case META_OPEN:
-            fprintf(f, "\"%s\", ", buf); break;
+            fprintf(f, "\"%s\"%c ", buf, DELIMITER); break;
         case MESSAGE_OPEN:
             fprintf(f, "\"%s\"\n", buf); break;
         default: break;
     }
-    //fprintf(f, "%s", buf);
     *buf_pos = 0;
     *curr_status = NONE;
     *read_status = NONE;
 }
 
 
-int main() {
+int main(int argc, char* argv[]) {
 
-    TrieNode* root = initParserTrie();
+    void* defaultData = malloc(sizeof(parser_status_t));
+    TrieNode* root = initParserTrie(defaultData);
     TrieNode* curr = NULL;
  
     mkdir(CSV_DIRECTORY, 0700);
@@ -76,19 +78,19 @@ int main() {
     FILE* fp = fopen("messages.htm", "r");
     char ch;
     int buf_pos = 0;
-    char buf[20000]; // char limit for facebook
+    char buf[FACEBOOK_CHAR_LIMIT]; // char limit for facebook
 
     int thread_index = 1;
-    char outfile_name[100];
+    char outfile_name[FILENAME_LIMIT];
     sprintf(outfile_name, "%s%05d.csv", CSV_DIRECTORY, thread_index);
     THREAD_INDEX = fopen("index.txt", "w");
 
     parser_status_t curr_status = NONE;
     parser_status_t read_status = NONE;
-    printf("Starting loop\n");
 
     int count = 0;
 
+    // parse character  by character
     while ((ch = getc(fp)) != EOF) {
         // if ch == '<' start searching, assign curr = root
         if (ch == '<') {
@@ -150,7 +152,7 @@ int main() {
                         // open new file
                         sprintf(outfile_name, "%s%05d.csv", CSV_DIRECTORY, thread_index++);
                         OUTFILE = fopen(outfile_name, "w");
-                        fprintf(OUTFILE, "%s\n", HEADERS);
+                        fprintf(OUTFILE, "%s\n", CSV_HEADERS);
 
                         // reset curr
                         curr = NULL;
@@ -166,6 +168,8 @@ int main() {
     }
     fclose(OUTFILE);
     fclose(THREAD_INDEX);
+    destroyTrie(root, defaultData);
+    free(defaultData);
 
     return 0;
 }

@@ -68,15 +68,21 @@ TrieNode* createNode(void* data) {
     return node;
 }
 
-void destroyTrie(TrieNode* root) {
+void destroyTrie(TrieNode* root, void* defaultData) {
     if (root == NULL) {
         return;
     }
     for (int i = 0; i < TRIE_SZ; ++i) {
-        destroyTrie(root->next[i]);
+        if (root->next[i] != NULL) {
+            destroyTrie(root->next[i], defaultData);
+        }
     }
-    free(root->data);
+    if (root->data != defaultData) {
+        free(root->data);
+        root->data = NULL;
+    }
     free(root);
+    root = NULL;
 }
 
 void insert(TrieNode* root, const char* word, void* data, void* defaultData) {

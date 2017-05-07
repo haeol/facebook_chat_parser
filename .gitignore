@@ -1,2 +1,5 @@
 *.html
 *.htm
+*.swp
+chatthreads/*
+*.txt
