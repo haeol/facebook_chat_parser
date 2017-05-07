@@ -75,7 +75,7 @@ int main(int argc, char* argv[]) {
  
     mkdir(CSV_DIRECTORY, 0700);
 
-    FILE* fp = fopen("messages.htm", "r");
+    FILE* fp = fopen("../messages.htm", "r");
     char ch;
     int buf_pos = 0;
     char buf[FACEBOOK_CHAR_LIMIT]; // char limit for facebook
